@@ -6,7 +6,8 @@ def create_consumer():
     return KafkaConsumer(
         'topic2',
         bootstrap_servers='kafka:9092',
-        auto_offset_reset='earliest',
+        auto_offset_reset='latest',
+        enable_auto_commit=False,
         group_id='subscriber2-group',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
