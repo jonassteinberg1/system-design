@@ -1,0 +1,81 @@
+version: '3'
+services:
+  zookeeper:
+    container_name: zookeeper
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181", "|", "grep", "imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  kafka:
+    container_name: kafka
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "bash", "-c", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server=localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+  publisher1:
+    container_name: publisher1
+    build:
+      context: .
+      dockerfile: publisher1.dockerfile
+    image: publisher1:${PUBLISHER1:-latest}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_TOPIC=topic1
+  publisher2:
+    container_name: publisher2
+    build:
+      context: .
+      dockerfile: publisher2.dockerfile
+    image: publisher2:${PUBLISHER2:-latest}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_TOPIC=topic2
+  subscriber1:
+    container_name: subscriber1
+    build:
+      context: .
+      dockerfile: subscriber1.dockerfile
+    image: subscriber1:${SUBSCRIBER1:-latest}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_TOPIC=topic1
+  subscriber2:
+    container_name: subscriber2
+    build:
+      context: .
+      dockerfile: subscriber2.dockerfile
+    image: subscriber2:${SUBSCRIBER2:-latest}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_TOPIC=topic2
+volumes:
+  kafka-data:
+
